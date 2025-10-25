@@ -127,3 +127,27 @@ for t in range(10):
     test_loop(test_dataloader, model, loss_fn)
 print("Done!")
 ```
+#### 保存和加载网络模型
+- 可以使用torch.save(model, path)将全部模型保存到指定路径
+- 更推荐：torch.save(model.state_dict(), path)只保存模型参数
+```
+# 保存模型
+import torchvision.models as models
+save_path = '../outputs/checkpoint/model_weights.pth'
+model = models.vgg16(weights='IMAGENET1K_V1')
+torch.save(model.state_dict(), save_path)
+```
+加载模型时要看模型的保存方式，若是只保存模型参数，需要使用model.load_state_dict(torch.load(path))
+```
+# 重新实例化模型（结构必须与保存时一致）
+loaded_model = models.vgg16()  # 注意：此处不加载预训练权重（仅创建相同结构）
+
+# 加载保存的权重
+loaded_model.load_state_dict(torch.load("../outputs/checkpoints/model_weights.pth"))
+
+# 清除加载状态的缓存（避免打印时显示加载结果）
+loaded_model._load_state_dict_post_hooks.clear()
+
+# 打印模型结构
+print(loaded_model)
+```
