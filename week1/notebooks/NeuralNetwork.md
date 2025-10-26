@@ -28,8 +28,11 @@ for batch_idx, (images, labels) in enumerate(train_dataloader):
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
+
         # flatten()将二维图片展开为一维数列，便于作为input输入网络
         self.flatten = nn.Flatten()
+
+        # nn.Linear()等都是nn.Module的子类，都会作为模型的一部分保存在state_dict中
         # 利用Sequential()快速构建网络结构，使用Linear()实现全连接层
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(28*28, 512),
@@ -39,6 +42,9 @@ class NeuralNetwork(nn.Module):
             nn.Linear(512, 10)
         )
 
+    # python的类方法第一个参数必须是self，表示实例对象本身
+    # 如果写成forward(x, self)，则会抛出TypeError
+    # PyTorch的nn.Module在调用model(input)时，内部会​​自动将input作为第二个参数传递给forward​​
     def forward(self, x):
         x = self.flatten(x)
         # logits表示输出层的输出结果，可以看作模型对于输入样本属于哪个类别的预测结果
@@ -48,6 +54,13 @@ class NeuralNetwork(nn.Module):
 model = NeuralNetwork()
 ```
 继承nn.Module，记得定义__init__()函数初始化类
+
+nn.ReLU是一个类，要么在初始化函数里构建其实例：
+```
+import torch.nn.functional as F
+self.relu = nn.ReLU()
+# 或者直接使用F.relu(x)
+```
 #### 定义损失函数和优化器
 使用**交叉熵**损失函数：
 ```
@@ -71,7 +84,9 @@ def train_loop(dataloader, model, loss_fn, optimizer):
     # 将模型设置为训练模式，激活Dropout和梯度计算等
     model.train()
     
-    for batch, (X, y) in enumerate(dataloader):
+    # batch为每个batch的索引列表
+    # X(B, C, H, W), y(B,)
+    for batch_idx, (X, y) in enumerate(dataloader):
         # 通过前向传播得到一个batch_size内的模型预测结果pred
         pred = model(X)
         # 计算pred与y之间的损失函数值
@@ -85,8 +100,10 @@ def train_loop(dataloader, model, loss_fn, optimizer):
         optimizer.step()
         
         # 每经过100个batch_size，即6400次循环过后，输出当前的loss值和训练轮数
+        # batch_idx * batch_size是前idx个batch的样本数，len(X)是当前batch的实际样本数
+        # len(X)返回张量的第一个维度大小，等同于tensor.shape[0]
         if batch % 100 == 0:
-            loss, current = loss.item(), batch * batch_size + len(X)
+            loss, current = loss.item(), batch_idx * batch_size + len(X)
             print(f"loss:{loss:>7f} [{current:>5d}/{size:>5d}]")
 ```
 current:>5d的效果：
@@ -100,7 +117,12 @@ test_loop()函数的作用是对训练后的模型进行​​验证/测试评�
 def test_loop(dataloader, model, loss_fn):
     # model.eval()关闭 Dropout/BatchNorm 等训练专用层，确保推理一致性。
     model.eval()
+
+    # len(dataloader.dataset)返回的是整个数据集的长度，即总共有多少个数据
     size = len(dataloader.dataset)
+
+    # len(dataloader)返回的是数据加载器迭代的次数（即批次数）
+    # len(dataloader) = len(dataloader.dataset)/batch_size
     num_batches = len(dataloader)
     test_loss, correct = 0, 0
 
@@ -112,7 +134,9 @@ def test_loop(dataloader, model, loss_fn):
             # 取预测概率最大的类别判断与真实标签是否相等，将其累加，得到所有预测正确的数量
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     
+    # 每经过一个batch_size计算一次loss，所以最终的loss要除以num_batches得到平均损失
     test_loss /= num_batches
+    # 每个样本的预测结果都会与真实标签相比较，所以correct计算的是所有样本的正确率，故除以size
     correct /= size
     print(f'Test Error: \n Accuracy:{(100*correct):>0.1f}%, Avg loss:{test_loss:>8f} \n')
 ```
