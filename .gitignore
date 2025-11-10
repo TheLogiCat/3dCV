@@ -1,2 +1,4 @@
 /week1/outputs/checkpoints/
 *.pth
+*.pcd
+*.ply
